@@ -1,311 +1,985 @@
-# AWS-Cloud
-Class 1: IAM: Identity Access Management :
-------------------------------------------
-create user = username and go with default and create it
+# AWS Cloud Learning Journey
 
-ARN: Any u want use resources like s3,EC2 u want grant u ARN.
+This repository contains my hands-on AWS learning notes and practical implementations. It covers AWS Identity and Access Management, networking, compute, load balancing, auto scaling, security, DNS, certificates, serverless computing, and more.
 
-IAM->users->click particular user->security credential enable console access ->enable->custom password->apply
+## Technologies and AWS Services Covered
 
-->open incognito mode and login with IAM user
+* AWS IAM
+* AWS Organizations
+* IAM Roles and AWS STS
+* Amazon EC2
+* SSH and Key Pairs
+* Amazon VPC
+* Subnets
+* Internet Gateway
+* Route Tables
+* Bastion Host
+* EC2 User Data
+* Launch Templates
+* Application Load Balancer (ALB)
+* Target Groups
+* EC2 Auto Scaling
+* AWS WAF
+* VPC Peering
+* AWS Transit Gateway
+* NAT Gateway
+* Amazon Route 53
+* AWS Certificate Manager (ACM)
+* AWS Lambda
 
--> u can see example s3 resources to see any buckets is there its show permission denied
+---
 
-->IAM->policies->create new policies, click JSON 
+# Class 1: AWS IAM - Identity and Access Management
+
+## What is IAM?
+
+AWS Identity and Access Management (IAM) is used to securely manage access to AWS resources.
+
+Using IAM, we can manage:
+
+* Users
+* Groups
+* Roles
+* Policies
+* Permissions
+
+## IAM User
+
+An IAM user represents a person or application that needs access to AWS resources.
+
+### Steps to Create an IAM User
+
+1. Go to **AWS IAM**
+2. Select **Users**
+3. Click **Create user**
+4. Enter the username
+5. Create the user
+
+To enable AWS Management Console access:
+
+```text
+IAM → Users → Select User → Security Credentials → Enable Console Access
+```
+
+Set a custom password and save the configuration.
+
+You can then open an incognito/private browser window and log in using the IAM user credentials.
+
+Initially, if the user tries to access an AWS resource such as an S3 bucket without permission, AWS returns an **Access Denied** error.
+
+## ARN - Amazon Resource Name
+
+An ARN uniquely identifies an AWS resource.
+
+Example:
+
+```text
+arn:aws:s3:::my-bucket
+```
+
+ARNS are commonly used in IAM policies to specify which resources a permission applies to.
+
+## IAM Policy Example - Full S3 Access
+
+```json
 {
-"version": "2021-10-17",
-"statement": [
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowS3Access",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### Create and Attach the Policy
+
+```text
+IAM → Policies → Create Policy → JSON
+```
+
+Paste the policy and create it.
+
+Example policy name:
+
+```text
+test-user-allow-s3-access
+```
+
+Attach the policy:
+
+```text
+IAM → Users → Select User → Add Permissions → Attach Policies Directly
+```
+
+After attaching the policy, refresh the IAM user's browser session. The user should now have the permissions defined in the policy.
+
+## IAM Groups
+
+IAM Groups allow permissions to be managed for multiple users.
+
+Example:
+
+```text
+Demo Group
+    ├── test-user-1
+    ├── test-user-2
+    └── test-user-3
+```
+
+### Steps
+
+```text
+IAM → User Groups → Create Group → Demo Group
+```
+
+Then:
+
+```text
+Select Group → Users → Add Users
+```
+
+Attach policies to the group:
+
+```text
+Select Group → Permissions → Attach Policies
+```
+
+Users inherit permissions attached to the group.
+
+---
+
+# Class 2: AWS Organizations
+
+AWS Organizations helps centrally manage multiple AWS accounts.
+
+It provides:
+
+* Multi-account management
+* Organizational Units (OUs)
+* Centralized governance
+* Billing management
+* Policy management
+
+Example structure:
+
+```text
+Root
+│
+├── Test-OU
+│   ├── Test-Account-1
+│   └── Test-Account-2
+│
+└── Production-OU
+    └── Production-Account
+```
+
+## Steps
+
+1. Open **AWS Organizations**
+2. Create an Organizational Unit named `Test-OU`
+3. Create an AWS account
+4. Assign or move the account into the required OU
+
+```text
+AWS Organizations → AWS Accounts → Actions → Create AWS Account
+```
+
+---
+
+# Class 3: IAM Roles and Assume Role
+
+## What is an IAM Role?
+
+An IAM Role is a set of permissions that can be temporarily assumed by AWS users, services, or accounts.
+
+Important points:
+
+* No username
+* No permanent password
+* No permanent access keys by default
+* Temporary credentials are provided through AWS STS
+* Permissions are controlled using IAM policies
+
+## Example: S3 Full Access Role
+
+Create a role:
+
+```text
+IAM → Roles → Create Role
+```
+
+Select:
+
+```text
+Trusted Entity Type: AWS Account
+Account: This Account
+```
+
+Attach the required permission:
+
+```text
+AmazonS3FullAccess
+```
+
+Example role name:
+
+```text
+S3-Full-Access-Role
+```
+
+To allow an IAM user to assume the role, create a policy with `sts:AssumeRole`.
+
+Example:
+
+```json
 {
-"sid":"alloS3acess",
-"effect":"Allow",
-Action:"s3:*",
-"Resource":"*",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "ROLE_ARN"
+    }
+  ]
 }
-]
-}
+```
 
-after click next policy name :test-user-allow-s3-acess -> create policy
+Workflow:
 
-assign policy to that user
-IAM->users->user name click ->add permission->attach policy directly,test-user-allow-s3-acess -> next and all policy
+```text
+IAM User
+    ↓
+Permission to call sts:AssumeRole
+    ↓
+IAM Role
+    ↓
+Temporary Credentials from AWS STS
+    ↓
+Access AWS Resources
+```
 
-->again go to incognito just refresh it u can see error message was gone
+---
 
-Root Account -> Demo-group -> inside group 1.test-user ->create a policy
+# Class 4: Amazon EC2
 
-IAM->user group -> create group -> name of group: demo group ->create group
+## What is an EC2 Instance?
 
-click demo group -> users -> add users ->select users and add it.
+Amazon EC2 (Elastic Compute Cloud) provides virtual servers in AWS.
 
-click demo group -> permissions -> attach policies -> select policy add it
+EC2 can be used to:
 
+* Host applications
+* Run web servers
+* Run backend services
+* Perform development and testing
+* Deploy workloads in the cloud
 
+## Key Pair
 
-class2:AWS Organization: 
-------------------------
-AWS Organizations -> AWS accounts -> check root ->action: create new ->Org unit name:test-OU -> create
+An EC2 key pair consists of:
 
-check test-OU ->Ass an AWS Account ->AWS Account name: test-account, email: temporary i will give ->create AWS
+```text
+Public Key  → Stored on the EC2 instance
+Private Key → Downloaded and securely stored by the user
+```
 
-it can create out in test-account just move to that test-OU
-check test-account ->action, move and just select test-OU -> move AWS Account
+The private key is used to authenticate when connecting to the EC2 instance.
 
-->after u login another root account
+For Linux instances, SSH is commonly used:
 
-class3:
---------
-AWS Role : Assume Role
------------------------
-IAM Role:
----------
-An IAM Role is just a set of permissions that can be temporarily assumed.
+```bash
+ssh -i my-key.pem ubuntu@EC2_PUBLIC_IP
+```
 
-No username/password
-No permanent credentials
-Temporary access via STS (Security Token Service)
+## Security Group
 
-work flow:
-----------
-user -> IAM Role(s3 full access role) +IAM Policy(AmazonS3FullAcess)
-In Amazon console:
-------------------
-Go To IAM -> Create User ->permission option: add user to group -> create user
-->click on particular user -> security console ->enable console access ->apply
-->roles-> select aws account ->An AWS account: This account ->next -> select:awss3full access ->next ->role name:S3-full-access ->create role
-->Again go to users ->clock on ok particular user ->permission,add permission:create inline policy -> modify Action:"sts:AssumeRole" and Resource:"paste arn in roles" ->policy name:s3-full-accesss->create policy
-->finally copy the role link and check it
+A Security Group acts as a virtual firewall for an EC2 instance.
 
-Class:4
--------
-What is Ec2 Instance
-how to launch an Ec2 
-how to create SHH key(public, private)
-how to SSH into Ec2 instance
+Example inbound rules:
 
-key pair: once create a key pair it create key two pair to generate pubic and private key private key is used to developer and public key used for EC2 instance
+| Protocol | Port | Purpose             |
+| -------- | ---: | ------------------- |
+| SSH      |   22 | Remote Linux access |
+| HTTP     |   80 | Web traffic         |
+| HTTPS    |  443 | Secure web traffic  |
 
-Allow SSH traffic :It allow means u can do the remote SSH or remotely login particular instance and up and running
+---
 
-class 5:
---------
-->sign AWS cloud account
-->create VPC(virtual private cloud) consider it is a data center inside VPC we can create subnets, internet gateway, route table
-subnet can create two subnet Public subnet and private subnet
+# Class 5: Amazon VPC
 
-Public subnet: resources can exposes in the internet that can store to public subnet eg: web application ui part can store here 
+## What is a VPC?
 
-private subnet : resources can not access into the internet that can store to private subnet eg:database
-vpc ip range:12.0.1.0/16, public subnet:12.0.1.0/24, public subnet:12.0.2.0/24
-->internet gateway: It is required to allow instances in a public subnet to send and receive traffic from the internet. Without an Internet Gateway, even if an instance has a public IP, it cannot communicate with the internet.
-->Route Table: A route table is used to control traffic in a VPC. It contains rules that decide where the traffic should go, like sending internet traffic to an Internet Gateway. Based on the route table, we decide whether a subnet is public or private.
-Step1:creating vpc
-Step2:create internet Gateway
-Step3:create Public and Private Subnet
-Step4:Create Route Tables in public and private route tables
-Step5: create Ec2 instances
+Amazon Virtual Private Cloud (VPC) allows us to create a logically isolated network in AWS.
 
-Class6:
--------
-->Bastion Host its also vpc setup
+A VPC can contain:
 
-Class7:AWS EC2:User Data Script
---------------------------------
-✅ Correct EC2 User Data Script (Ubuntu)
+* Subnets
+* Route Tables
+* Internet Gateway
+* NAT Gateway
+* EC2 Instances
+* Security Groups
 
-Use this instead:
+Example:
+
+```text
+VPC: 12.0.0.0/16
+
+Public Subnet:  12.0.1.0/24
+Private Subnet: 12.0.2.0/24
+```
+
+## Public Subnet
+
+Resources can communicate with the internet when correctly configured with:
+
+* Internet Gateway
+* Route to Internet Gateway
+* Public IPv4 address or equivalent public connectivity
+
+Example:
+
+```text
+Web Server
+Application Frontend
+Load Balancer
+Bastion Host
+```
+
+## Private Subnet
+
+Resources are not directly accessible from the internet.
+
+Example:
+
+```text
+Database
+Internal Application Server
+Backend Services
+```
+
+## Internet Gateway
+
+An Internet Gateway enables communication between a VPC and the internet.
+
+A public route table generally contains:
+
+```text
+Destination: 0.0.0.0/0
+Target: Internet Gateway
+```
+
+## Route Table
+
+A route table controls where network traffic is sent.
+
+Example:
+
+```text
+Destination        Target
+12.0.0.0/16        Local
+0.0.0.0/0          Internet Gateway
+```
+
+## VPC Setup Steps
+
+```text
+Step 1 → Create VPC
+Step 2 → Create and Attach Internet Gateway
+Step 3 → Create Public and Private Subnets
+Step 4 → Create and Configure Route Tables
+Step 5 → Launch EC2 Instances
+```
+
+---
+
+# Class 6: Bastion Host
+
+A Bastion Host is an EC2 instance used to securely access instances in private subnets.
+
+Architecture:
+
+```text
+Internet
+    ↓
+Bastion Host
+(Public Subnet)
+    ↓
+SSH
+    ↓
+Private EC2 Instance
+(Private Subnet)
+```
+
+The private EC2 instance does not need direct internet access for administrative SSH access through the bastion host.
+
+---
+
+# Class 7: EC2 User Data
+
+EC2 User Data allows scripts to run automatically when an EC2 instance launches.
+
+## Ubuntu Apache Installation Script
+
+```bash
 #!/bin/bash
 
-# Update packages
 apt-get update -y
-
-# Install Apache
 apt-get install -y apache2
 
-# Start and enable Apache
 systemctl start apache2
 systemctl enable apache2
 
-# Create a simple web page
 echo "<h1>Server is up and running</h1>" > /var/www/html/index.html
+```
 
-->not only paste we can upload file for shell script file also.
+User Data can be entered directly or provided through a script file, depending on the launch workflow.
 
-Class8:AWS EC2:Launch template & Source Template
-------------------------------------------------
+---
 
-->create a launch template -> launch template name:ec2-instance ->template tag:name,ec2-instance ->AMI: Brows AMI select ubuntu -?instance type:t2.micro -> keypair -> Network settings: security groups:allow-ssh-traffic port and allow -traffic-port80 -> user data -> create launch template
+# Class 8: EC2 Launch Templates
 
-->Go to launch instance drop down select launch instance from template -> choose launch template -> launch instance
+A Launch Template stores EC2 launch configuration.
 
-VPC: security group : its for inbound out bound rules
+It can include:
 
-Class9:AWS EC2:ALB(Application Load Balancer):
--------------------------------------
--> create VPC ip:12.0.0.0/16
--> create internet gateway 
--> create public two subnet with different availability zones ip:12.0.1.0/24, 12.0.3.0/24
--> create Route Table
--> We have to create two EC2 instances for two subnets. creating Ec2 instances in that time in network setting, add security group select http
--> create Target group :create TG ->instance, Target group name, vpc -> next -> select both instances: include as pending below -> create target group
-->Load Balancer -> create LB -> select ALB -> LB name:, internet facing, VPC, mappings: select it, -> create one more security group for HTTP -> Listeners and routing: select target group -> create Load Balancer
+* AMI
+* Instance type
+* Key pair
+* Security Groups
+* Storage configuration
+* User Data
 
-class 10:Ec2 Auto Scaling :
---------------------------
--> create VPC ip:12.0.0.0/16
--> create internet Gateway
--> create public two subnet with different availability zones ip:12.0.1.0/24, 12.0.3.0/24
--> create Route Table
--> Create Target Group : No Instances
--> Create Load Balancer : here create a new security group for Http 
--> create Auto Scaling Group -> create AS -> name, create a new launch template [network setting: dont need subnet, select common security group,enable auto-assign public ip] -> next -> network :select VPC, select Available zones ->Load balancing: attach load balaner: chose from your LB target group:select target group ->Helth check : turn on check, Health check grace period:20sec ->desire:2, min:1, max:3  next ,next, next ->create Auto scaling
+Example:
 
+```text
+Launch Template Name: ec2-instance
+AMI: Ubuntu
+Instance Type: t2.micro
+```
 
+Security group rules:
+
+```text
+SSH: 22
+HTTP: 80
+```
+
+Once created:
+
+```text
+EC2 → Launch Instance → Launch from Template
+```
+
+---
+
+# Class 9: Application Load Balancer
+
+An Application Load Balancer (ALB) distributes HTTP and HTTPS traffic across multiple targets.
+
+Architecture:
+
+```text
+Users
+  ↓
+Application Load Balancer
+  ↓
+Target Group
+  ↓
+├── EC2 Instance 1
+└── EC2 Instance 2
+```
+
+## Setup
+
+1. Create a VPC
+2. Create an Internet Gateway
+3. Create two public subnets in different Availability Zones
+4. Configure route tables
+5. Launch two EC2 instances
+6. Create a Target Group
+7. Register EC2 instances as targets
+8. Create an Application Load Balancer
+9. Attach the Target Group to the ALB listener
+
+Using multiple Availability Zones improves availability.
+
+---
+
+# Class 10: EC2 Auto Scaling
+
+Auto Scaling automatically adjusts the number of EC2 instances based on demand and configuration.
+
+Example:
+
+```text
+Minimum Capacity: 1
+Desired Capacity: 2
+Maximum Capacity: 3
+```
+
+Architecture:
+
+```text
+Users
+  ↓
+Application Load Balancer
+  ↓
+Auto Scaling Group
+  ↓
+├── EC2 Instance
+├── EC2 Instance
+└── Additional Instance when needed
+```
+
+## Setup
+
+1. Create VPC networking
+2. Create Target Group
+3. Create Application Load Balancer
+4. Create Launch Template
+5. Create Auto Scaling Group
+6. Select VPC and multiple Availability Zones
+7. Attach the Target Group
+8. Configure health checks
+9. Set minimum, desired, and maximum capacity
+
+## User Data Script
+
+```bash
 #!/bin/bash
-sudo apt update -y
-sudo apt install -y apache2
-sudo systemctl start apache2
-sudo systemctl enable apache2
+
+apt update -y
+apt install -y apache2
+
+systemctl start apache2
+systemctl enable apache2
+
 echo "<h1>Server Details</h1>
 <p><strong>Hostname:</strong> $(hostname)</p>
-<p><strong>IP Address:</strong> $(hostname -I | awk '{print $1}')</p>" | sudo tee /var/www/html/index.html
-sudo systemctl restart apache2
+<p><strong>IP Address:</strong> $(hostname -I | awk '{print $1}')</p>" > /var/www/html/index.html
 
+systemctl restart apache2
+```
 
-Class 11:How to use AWS Web application firewall/Web ACL:
----------------------------------------------------------
--> create VPC
--> create internet gateway
--> create public two subnet with different availability zones
--> create route table
--> create instance
--> create application load balancer: first create target group, now create Load balancer, in LB to create new security group
--> in search WAF & Shield -> click web ACLs -> select region location -> create web ACL -> name:AWS-waf-demo -> resource type: Regional resources, add AWS resources:select application load balancer select and add -> next -> before add rules in left side menu [ip sets ->ip set name: my-laptop-ip, ip addresses :laptop ip go goggle  serach  my lap ip ] add rules:add my own rules, rule type:ip set, name:block-my-laptop access, ip set:my-latop-ip, ip address to use the: source ip address, action:block ->add rule, select rule ->next,next,next -> create web ACL
+---
 
-class 12: VPC Peering
-----------------------
--> create two VPC 12.0.0.0/16, 13.0.0.0/16
--> create two route table
--> create two subnet for vpc1 and vpc2 with same availability zone
--> create two internet gateway
--> launch instance for two vpcs
+# Class 11: AWS WAF
 
--> in vpc click on peering connections -> create peering connection, name:, select local vpc to peer with:vpc1,VPC ID:vpc2 -> create peering connection -> in Action: Accept request
+AWS WAF (Web Application Firewall) helps protect web applications from unwanted HTTP and HTTPS requests.
 
-->Route tables ->rt1->edit routes -> add route destination:destination of vpc2 ip, target:peering connection -> save changes
-->Route tables ->rt2->edit routes -> add route destination:destination of vpc1 ip, target:peering connection -> save changes
--> after in putty connect to two instances after is peering or not u can check command like curl private ip address for another instance
+It can be associated with services such as an Application Load Balancer.
 
-class 13:AWS VPC Transits Gateway :
------------------------------------
--> create VPC ip:12.0.0.0/16, 
--> create internet gateway
--> create subnet ip:12.0.1.0/24
--> create Route Table
--> create EC2 Instance
--> same way to create 2 vpc's we need three test-vpc
--> Transit Gateway -> create transit gateway, name: tg-vpc1-vpc2-vpc3 ,description: TG for vpc1 vpc2 vpc3, ASN:emty, -> create transit gateway
-->Transit Gateway attachment ->name tag:tg-attachment-vpc-1->select transit gateway id -> attachment type: VPC -> VPC ID: select VPC-1 ->create transit gateway attachment
--> same way create remain transit gateways for two vpc's
-->(vpc peering and transit gateway are same but in transit gateway you can create single transit gateway and handle multiple vpc's. In vpc peering more vpc are there you need to create multiple vpc peering)
--> update the route tables, route tables ->click on VPC1 route table id -> edit routes ->add routes -> destination: type second vpc2 ip, target: select transit gateway -> save changes
-route table -> edit routes -> add routes -> destination: third vpc3 ip, target:transit gatway -> save changes
+Example architecture:
 
---- same way add routes on vpc2 and vpc3 ---
+```text
+User Request
+     ↓
+AWS WAF
+     ↓
+Application Load Balancer
+     ↓
+EC2 Instances
+```
 
-test:in terminal take 3 duplicates add permmsion and add ssh 
-check i am able to access vpc2 and vpc 3 to check command curl vpc2private ip
-finally we can saw the vpcs can communicate blw them
+## Example: Block a Specific IP Address
 
+1. Create an IP Set
+2. Add the IP address or CIDR range
+3. Create a Web ACL
+4. Associate the Web ACL with an Application Load Balancer
+5. Create a rule using the IP Set
+6. Set the action to `Block`
 
+Example:
 
-class 14:NAT Gateway setup in your VPC :
--------------------------------------
--> create VPC ip:12.0.0.0/16
--> create two subnet public and private same availability zones ip:ip:12.0.1.0/24, 12.0.2.0/24
--> create internet gateway
--> create two route table 
--> create NAT Gateway
--> After creating NAT gateway go to route table edit test-private route table add route destination:0.0.0/0 target: NAT Gateway -> save changes
--> create Two EC2 Instances Public and Private instances
--> Test NAT Gateway : in putty to access two instances private and public 
+```text
+IP Set: my-laptop-ip
+Rule: block-my-laptop-access
+Action: Block
+```
 
+---
 
-Class 15: AWS Route 53 course :
--------------------------------
-->What is Route 53
-->Hosted Zones
-->Custom Domain + Goggle Domains
-->Name server, A, CNAME, ALIAS
-->Simple Routing, Weighted, Geolocation, Failover
+# Class 12: VPC Peering
 
-1.Simple Routing:
------------------
--> First u can create hosted zone -> Route 53 -> created hosted zone-> Domain name: test.xyz, Type:pubic hosted zone -> created hosted zone
-->(Domain Name System) In DNS record changes, you need to copy the default name servers from the Route 53 hosted zone and update them in your domain registrar (like GoDaddy or Google Domains) by replacing the existing name servers.
--> After u can create Ec2 instance
--> I want to access my application using a domain name instead of an IP address. For that, I create an A record in DNS, which maps the domain name to the public IP address of an EC2 instance.
-example.com → DNS → IP address → EC2 instance → Your app
+VPC Peering allows private communication between two VPCs.
 
-->Route 53 -> Hosted zones -> click on domain name -> create a record -> routing policy: simple routing, ->next -> Define simple record, record name: subdomain emty, record type:A-Route traffic to an IPV4 address and some AWS resources, value/Route traffic to:paste ipv4 -> define simple record -> select and create record
+Example:
 
-2.Weighted Routing:
--------------------
--> create VPC ip:12.0.0.0/16
--> create Subnet two public(12.0.1.0/24,12.0.2.0/24) and one private subnet(12.0.3.0/24) with different availability zones
-->create internet gateway and attach the VPC
-->Create two Route Table for public and private
--> create a new Ec2 instance inside new VPC 
--> create target group: its is a logical grouping of Ec2 Instances so our load balancer can choose to this particular group to forword the request
--> create Application load balancer
-->Route 53 -> Hosted zones -> click on domain name -> create a record -> routing policy: simple routing, ->next -> Define simple record, record name: subdomain emty, record type:A-Route traffic to an IPV4 address and some AWS resources, Value/Route traffic to: choose end point: Alias to Application and classic Load Balancer, choose region, choose load balancer - create records
+```text
+VPC 1: 12.0.0.0/16
+        ↕
+   VPC Peering
+        ↕
+VPC 2: 13.0.0.0/16
+```
 
-More in Weighted Routing:
-------------------------- 
-Weighted: Weighted Routing is putting  percentage share the traffic load on the multiple load balancers
+## Important Step: Update Route Tables
 
--> in this two VPC needed same setup for creating vpc2 13.0.0.0/16 all networking setup
--> create vpc2 EC2 instance
--> create target group
--> create Load Balancer
-->Route 53 -> Hosted zones -> click on domain name -> create a record -> routing policy: Weighted routing ->next -> Define the Weighted records:choose endpoint:Application LB,availability zone,choose LB,weight:128[total 256 bits, 128 is 50%], Evaluate target health:yes, Record ID: A record for test-lb ->Define weighted route,and same way add one more A record for 2nd lb -> select 2 A record -> create records
+VPC 1 Route Table:
 
-3.Geolocation Routing
-----------------------
--> All setup is same 
+```text
+Destination: 13.0.0.0/16
+Target: VPC Peering Connection
+```
 
-->Route 53 -> Hosted zones -> click on domain name -> create a record -> routing policy: Geolocation routing -> next, -> Define the Geolocation records ->choose end point,location,lb, loaction: sweden, Record ID: A record for Sweden test-lb , same way add one more -> create record
-4.Failover Routing:
--------------------
--> All setup is same 
--> Route 53 -> Hosted zones -> click on domain name -> create a record -> routing policy: Failover -> next -> Define:Application LB,choose : primary,Record ID -> click on define -> same way define ->create record
+VPC 2 Route Table:
 
---------------
+```text
+Destination: 12.0.0.0/16
+Target: VPC Peering Connection
+```
 
-Class 16:
-----------
-AWS certificate Manager:
------------------------
-->create VPC ip:12.0.0.0/16
-->create two subnet ip:12.0.1.0/16,12.0.2.0/24
--> create internet gateway
-->create Route table
-->create EC2 instances
-->create target group
-->setup load balancer
--> setup the Route 53
-->search AWS certificate Manager(ACM) ->Request Certificate ->next -> remaiming go with default ->request ->click certificate Id->Domains: create records in route 53 -> create record after u will see in Route 53 in hosted zones
-->in load balancer add one more listener HTTP only is there but need to add HTTPS
--> in lb ->security -> click security group id -> add in bounce rule -> edit -> add rule ->select HTTPS 
-->(u type http://demo.com but it will redirect to take https://demo.com) Got LB -> click on http:80 click on default, action: edit rule -> Defult action :redirect to url, protocal: HTTPS, port:443, (unselect custom host,path,query),status code:301-permanently moved -> save changes
+After security groups and routes are correctly configured, instances can communicate using private IP addresses.
 
-Class 17 :AWS Lambda Function :
-------------------------------
-What is Lambda?
-how to create your lambda
-1.how to create lambda by uploading zip code file?
-2.how to create lambda by uploading zip code file to s3 buckets?
-3.lambda function url?
-4.lambda environment variables?
-5.lambda layers?
+Example:
 
-What is Lambda?
+```bash
+curl http://PRIVATE_IP
+```
+
+---
+
+# Class 13: AWS Transit Gateway
+
+AWS Transit Gateway provides a central networking hub for connecting multiple VPCs and networks.
+
+Example:
+
+```text
+        VPC 1
+          │
+          │
+    Transit Gateway
+       /        \
+      /          \
+   VPC 2        VPC 3
+```
+
+This is more scalable than creating many individual VPC peering connections.
+
+## Setup
+
+1. Create multiple VPCs
+2. Create a Transit Gateway
+3. Create Transit Gateway Attachments for each VPC
+4. Configure route tables in each VPC
+5. Configure Transit Gateway routing as required
+6. Test connectivity
+
+Example:
+
+```text
+VPC 1: 12.0.0.0/16
+VPC 2: 13.0.0.0/16
+VPC 3: 14.0.0.0/16
+```
+
+Each VPC route table needs routes for the other VPC CIDR ranges through the Transit Gateway.
+
+---
+
+# Class 14: NAT Gateway
+
+A NAT Gateway allows instances in a private subnet to initiate outbound internet connections while preventing unsolicited inbound internet connections.
+
+Architecture:
+
+```text
+Private EC2
+    ↓
+NAT Gateway
+    ↓
+Internet Gateway
+    ↓
+Internet
+```
+
+Example:
+
+```text
+VPC: 12.0.0.0/16
+
+Public Subnet:  12.0.1.0/24
+Private Subnet: 12.0.2.0/24
+```
+
+The NAT Gateway is placed in a public subnet.
+
+Private route table:
+
+```text
+Destination: 0.0.0.0/0
+Target: NAT Gateway
+```
+
+---
+
+# Class 15: Amazon Route 53
+
+Amazon Route 53 is AWS's DNS service.
+
+It provides:
+
+* Domain management
+* Hosted Zones
+* DNS records
+* Health checks
+* Traffic routing policies
+
+Common record types:
+
+```text
+A
+CNAME
+Alias
+```
+
+## Simple Routing
+
+Simple Routing directs traffic to a single resource.
+
+Example:
+
+```text
+example.com
+    ↓
+DNS
+    ↓
+Public IP / AWS Resource
+    ↓
+EC2 Application
+```
+
+## Weighted Routing
+
+Weighted Routing distributes traffic between multiple records based on assigned weights.
+
+Example:
+
+```text
+Load Balancer 1 → Weight 128
+Load Balancer 2 → Weight 128
+```
+
+This results in approximately:
+
+```text
+50% → Load Balancer 1
+50% → Load Balancer 2
+```
+
+Important: The weights are relative values. They do not need to total 256.
+
+## Geolocation Routing
+
+Geolocation Routing sends traffic based on the user's geographic location.
+
+Example:
+
+```text
+Users from Sweden → Load Balancer A
+Users from India  → Load Balancer B
+```
+
+## Failover Routing
+
+Failover Routing supports active-passive architecture.
+
+```text
+Primary Resource
+       ↓
+If Health Check Fails
+       ↓
+Secondary Resource
+```
+
+---
+
+# Class 16: AWS Certificate Manager
+
+AWS Certificate Manager (ACM) is used to provision and manage SSL/TLS certificates.
+
+Architecture:
+
+```text
+User
+ ↓ HTTPS
+Application Load Balancer
+ ↓
+Target Group
+ ↓
+EC2 Instances
+```
+
+## Steps
+
+1. Configure VPC and EC2 infrastructure
+2. Create a Target Group
+3. Create an Application Load Balancer
+4. Configure Route 53 DNS
+5. Request a certificate in ACM
+6. Validate domain ownership
+7. Add an HTTPS listener on port 443
+8. Attach the ACM certificate to the listener
+9. Allow HTTPS traffic in the ALB Security Group
+10. Configure HTTP to HTTPS redirection
+
+Example redirect:
+
+```text
+HTTP :80
+   ↓
+301 Permanent Redirect
+   ↓
+HTTPS :443
+```
+
+---
+
+# Class 17: AWS Lambda
+
+## What is AWS Lambda?
+
+AWS Lambda is a serverless compute service that runs code without requiring you to manage servers.
+
+With Lambda, AWS handles:
+
+* Server provisioning
+* Scaling
+* Infrastructure management
+* High availability
+
+You focus mainly on writing and deploying your code.
+
+## Lambda Topics Covered
+
+### 1. Uploading Code as a ZIP File
+
+You can package your Lambda function code and dependencies into a ZIP file and upload it.
+
+### 2. Uploading Lambda Code from Amazon S3
+
+For larger deployment packages, the ZIP file can be uploaded to Amazon S3 and then used during Lambda deployment.
+
+### 3. Lambda Function URL
+
+A Lambda Function URL provides a dedicated HTTPS endpoint for invoking a Lambda function.
+
+Example:
+
+```text
+Client
+   ↓
+Lambda Function URL
+   ↓
+AWS Lambda
+   ↓
+Response
+```
+
+### 4. Lambda Environment Variables
+
+Environment variables are used to provide configuration values without hardcoding them directly in the application code.
+
+Example:
+
+```text
+DB_HOST=database.example.com
+ENVIRONMENT=dev
+API_URL=https://example.com
+```
+
+Sensitive values should generally be handled using appropriate services such as AWS Secrets Manager or Systems Manager Parameter Store rather than storing secrets insecurely.
+
+### 5. Lambda Layers
+
+Lambda Layers allow common dependencies or libraries to be packaged separately and reused by multiple Lambda functions.
+
+Example:
+
+```text
+Lambda Layer
+   ├── Python Libraries
+   ├── Node.js Dependencies
+   └── Common Utilities
+
+        ↓ Used By
+
+Lambda Function 1
+Lambda Function 2
+Lambda Function 3
+```
+
+---
+
+# AWS Architecture Concepts Learned
+
+During this learning journey, I practiced the following architectures:
+
+```text
+IAM User → IAM Policy → AWS Resources
+
+Internet → ALB → Target Group → EC2 Instances
+
+Internet → WAF → ALB → EC2 Instances
+
+Internet → Bastion Host → Private EC2
+
+Private EC2 → NAT Gateway → Internet Gateway → Internet
+
+VPC 1 ↔ VPC Peering ↔ VPC 2
+
+VPC 1
+VPC 2 ─── Transit Gateway ─── Multiple Networks
+VPC 3
+
+Domain → Route 53 → Load Balancer → EC2
+
+HTTP → ALB → HTTPS Redirect → ACM Certificate → Secure Application
+
+Client → Lambda Function URL → AWS Lambda
+```
+
+---
+
+# Learning Outcome
+
+After completing these hands-on sessions, I gained practical understanding of:
+
+* AWS Identity and Access Management
+* AWS Account and Organization management
+* IAM Roles and temporary access
+* EC2 provisioning and SSH access
+* VPC networking fundamentals
+* Public and private subnet architecture
+* Load balancing and high availability
+* Auto Scaling
+* Web Application Firewall configuration
+* VPC-to-VPC connectivity
+* NAT Gateway
+* DNS and traffic routing using Route 53
+* SSL/TLS certificate management using ACM
+* Serverless computing using AWS Lambda
+
+---
+
+# Important Note
+
+These notes are based on hands-on learning and practice. Some configurations such as CIDR ranges, instance types, and security rules should be adjusted based on real project requirements.
+
+For production environments, always follow AWS security best practices, including:
+
+* Use least-privilege IAM permissions
+* Avoid using the root account for daily activities
+* Protect and rotate credentials
+* Restrict SSH access
+* Avoid exposing private resources publicly
+* Use Multi-AZ architecture where required
+* Enable logging and monitoring
+* Use appropriate backups and disaster recovery strategies
